@@ -13,7 +13,7 @@ function resizeCanvas(){
     canvas.style.width = canvas.width + "px";
     canvas.style.height = canvas.height + "px";
     ctx.setTransform(screenScale,0,0,screenScale,0,0)
-    ctx.imageSmoothingEnabled = false //if Pixel Art
+    ctx.imageSmoothingEnabled = false
 }
 window.addEventListener("resize",resizeCanvas);
 resizeCanvas()
@@ -42,6 +42,11 @@ canvas.addEventListener("mousemove", function (e) {
 })
 canvas.addEventListener("mousedown", function (e) {
     mouseDown = true;
+    if (stage === 0){
+        start()
+    }else if(stage === 2){
+        stage = 0
+    }
 })
 canvas.addEventListener("mouseup", function (e) {
     mouseDown = false;
@@ -51,6 +56,7 @@ const SKILLCHOICESAMO = 3
 let score
 let scoreGoal = 10
 let choosing = false
+let stage = 0
 
 const Cam = { //£ cam
     x: 0,
@@ -124,16 +130,31 @@ class Img{
         ctx.restore()
     }
 }
-const ATLAS = new Image()
-ATLAS.src = "atlas.png"
+//£ images
+const introImg = new Image()
+introImg.src = "images/intro.png"
 
-const ammoImg = new Img(32,618,16,8) 
-const carImg = new Img(32,576,16,16) 
-const grassImg = new Img(0,576,32,32) 
-const gunImg = new Img(0,608,32,28) 
-const heartImg = new Img(32,592,16,16) 
-const missileImg = new Img(32,608,16,10) 
-const shooterImg = new Img(32,626,16,8) 
+let atlasLoaded = false
+const ATLAS = new Image()
+ATLAS.src = "images/atlas.png"
+ATLAS.onload = () =>{atlasLoaded = true}
+
+const boomAni = [
+    new Img(144,176,16,16),
+    new Img(150,28,16,16),
+    new Img(160,176,16,16) 
+]
+const ammoImg = new Img(118,48,16,8) 
+const carImg = new Img(166,28,16,16) 
+const deathImg = new Img(0,0,102,58) 
+const grassImg = new Img(144,144,32,32) 
+const gunImg = new Img(150,0,32,28) 
+const heartImg = new Img(176,144,16,16) 
+const missileImg = new Img(102,48,16,10) 
+const shooterImg = new Img(144,192,16,8) 
+
+
+
 
 
 const tempImg = new Image()
@@ -158,6 +179,16 @@ function drawCircle(x,y,r,colour){
     ctx.beginPath()
     ctx.arc(scrCoords.x,scrCoords.y,r*a.unitsize,0,2*Math.PI)
     ctx.fill()
+}
+function drawText(text,x,y,h,font,colour,baseLine="middle",align="center",maxW=null){
+    ctx.font = `${h}px ${font}`
+    ctx.fillStyle = colour
+
+    ctx.textBaseline = baseLine
+    ctx.textAlign = align
+
+    if (maxW === null) ctx.fillText(text,x,y)
+    else ctx.fillText(text,x,y,maxW)
 }
 function drawLine(toScr,x1,y1,x2,y2,thickness,colour,cap="butt"){
 
@@ -286,40 +317,40 @@ const SKILLS = [
     new Skill("+","bulletSpeed",20),
     new Skill("*","reloadTime",.7),
     new Skill("*","unitsize",.8),
-    new Skill("+","maxHp",2,true),
+    new Skill("+","maxHp",3,true),
     new Skill("*","maxHp",1.3,true),
     new Skill("?","missileTk",true),
     new Skill("+","regen",1,true),
     new Skill("*","regen",1.2,true)
 ]
 /*
-const sBulletSizeImg = new Img(0,0,48,48) 
-const sBulletSpeedImg = new Img(0,48,48,48) 
-const sFrictionImg = new Img(0,96,48,48) 
-const sMagSizeImg = new Img(0,144,48,48) 
-const sMaxHpImg = new Img(0,192,48,48) 
-const sMaxSpeedImg = new Img(0,240,48,48) 
-const sMissileTkImg = new Img(0,288,48,48) 
-const sPiercingImg = new Img(0,336,48,48) 
-const sRecoilImg = new Img(0,384,48,48) 
-const sRegenImg = new Img(0,432,48,48) 
-const sReloadTimeImg = new Img(0,480,48,48) 
-const sZoomImg = new Img(0,528,48,48) 
+const sBulletSizeImg = new Img(0,58,48,48) 
+const sBulletSpeedImg = new Img(0,106,48,48) 
+const sFrictionImg = new Img(0,154,48,48) 
+const sMagSizeImg = new Img(48,58,48,48) 
+const sMaxHpImg = new Img(48,106,48,48) 
+const sMaxSpeedImg = new Img(48,154,48,48) 
+const sMissileTkImg = new Img(96,58,48,48) 
+const sPiercingImg = new Img(96,106,48,48) 
+const sRecoilImg = new Img(96,154,48,48) 
+const sRegenImg = new Img(102,0,48,48) 
+const sReloadTimeImg = new Img(144,48,48,48) 
+const sZoomImg = new Img(144,96,48,48) 
 */
 
 const SKILLIMGS = {
-    recoil: new Img(0,384,48,48),
-    playerFriction: new Img(0,96,48,48),
-    maxSpeed: new Img(0,240,48,48),
-    bulletSpeed: new Img(0,48,48,48),
-    bulletRadius: new Img(0,0,48,48),
-    magSize: new Img(0,144,48,48) ,
-    reloadTime: new Img(0,480,48,48),
-    missileTk: new Img(0,288,48,48),
-    bulletPen: new Img(0,336,48,48),
-    unitsize: new Img(0,528,48,48),
-    maxHp: new Img(0,192,48,48) ,
-    regen: new Img(0,432,48,48) 
+    recoil: new Img(96,154,48,48) ,
+    playerFriction: new Img(0,154,48,48) ,
+    maxSpeed: new Img(48,154,48,48) ,
+    bulletSpeed: new Img(0,106,48,48) ,
+    bulletRadius: new Img(0,58,48,48),
+    magSize: new Img(48,58,48,48) ,
+    reloadTime: new Img(144,48,48,48) ,
+    missileTk: new Img(96,58,48,48),
+    bulletPen: new Img(96,106,48,48) ,
+    unitsize: new Img(144,96,48,48) ,
+    maxHp: new Img(48,106,48,48) ,
+    regen: new Img(102,0,48,48) 
 }
 const defaultA = { //£ a
     recoil: 15,
@@ -332,7 +363,7 @@ const defaultA = { //£ a
     missileTk: false,
     bulletPen: 2,
     unitsize: 30,
-    maxHp: 5,
+    maxHp: 10,
     regen: 1
 }
 let multiA = {}
@@ -354,6 +385,7 @@ function start(){
     Cam.y = 0
     scoreGoal = 10
     spawnTimeLeft = 0
+    stage = 1
 }
 let foes = []
 class Shooter{ //£ Shooter
@@ -371,7 +403,9 @@ class Shooter{ //£ Shooter
 
         this.x += Math.cos(this.angle) * delta * this.SPEED
         this.y += Math.sin(this.angle) * delta * this.SPEED
-        
+
+        if (pointDist(this.x,this.y,Cam.x,Cam.y) > worCanvasW*2) this.alive = false
+
         if (pointDist(this.x,this.y,Cam.x,Cam.y) > worCanvasH) return
         if (this.shootTimeLeft <= 0){
             this.shootTimeLeft = 1
@@ -614,7 +648,7 @@ class PlayerClass{ //£ Player
     hurt(){
         this.hp --
         if (this.hp <= 0) {
-            console.log("Dead")
+            stage = 2
         }
     }
 }
@@ -634,19 +668,13 @@ function drawBg(){
 const heartW = 100
 const ammoW = 100
 function drawHud(){
-    ctx.font = "100px myFont"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "hanging"
-    ctx.fillStyle = "black"
-    ctx.fillText(score,canvasWidth/2,0)
+    drawText(score,canvasWidth/2,0,100,"myFont","black","hanging")
 
     heartImg.draw(false,0,0,100)
-    ctx.font = "40px myFont"
-    ctx.fillText(`${Player.hp}/${a.maxHp}`,heartW/2,heartW/4)
+    drawText(`${Player.hp}/${a.maxHp}`, heartW/2,heartW/4,40,"myFont","black","hanging","center",heartW)
 
     ammoImg.draw(false,canvasWidth-ammoW,0,ammoW)
-    ctx.textBaseline = "middle"
-    ctx.fillText(`${Player.mag}/${a.magSize}`,canvasWidth - ammoW/2, ammoW/4)
+    drawText(`${Player.mag}/${a.magSize}`,canvasWidth - ammoW/2, ammoW/4,40,"myFont","black","middle","center",ammoW)
 }
 
 
@@ -698,15 +726,22 @@ const skillChooser = {
 
             if (nowSkill.type === "?") continue
 
-            ctx.fillStyle = "black"
-            ctx.font = "50px myFont"
-            ctx.textAlign = "center"
-            ctx.textBaseline = "bottom"
-            ctx.fillText(nowSkill.desc,this.xPosis[i]+this.boxW/2,this.boxY + this.boxH,this.boxW)
+            drawText(nowSkill.desc,this.xPosis[i]+this.boxW/2,this.boxY + this.boxH,50,
+                "myFont","black","bottom","center",this.boxW)
         }
     }
 }
-start()
+function drawIntro(){
+    ctx.drawImage(introImg,0,0,canvasWidth,canvasHeight)
+
+    if (!atlasLoaded)  drawText("Loading...",canvasWidth/2,canvasHeight,
+        50,"myFont","black","bottom","center")
+}
+function drawDeath(){
+    deathImg.draw(false,0,0,canvasWidth,canvasHeight)
+
+    drawText(`Score: ${score}`,canvasWidth/2,canvasHeight,200,"myFont","black","bottom","center")
+}
 function main(delta){//£ main
     mouseCoords = Cam.getWorld(mouseScrX,mouseScrY)
     if (!choosing){
@@ -732,8 +767,9 @@ function animate(timestamp) { //£ animate
     const delta = Math.min((timestamp - previousTime) / 1000,.05)
     previousTime = timestamp
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-    main(delta)
+    if(stage === 0) drawIntro()
+    else if (stage === 1) main(delta)
+    else if (stage === 2) drawDeath()
     requestAnimationFrame(animate);
 }
 requestAnimationFrame(animate);
