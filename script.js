@@ -127,14 +127,17 @@ class Img{
 const ATLAS = new Image()
 ATLAS.src = "atlas.png"
 
-const ammoImg = new Img(32,42,16,8) 
-const carImg = new Img(32,0,16,16) 
-const grassImg = new Img(0,0,32,32) 
-const gunImg = new Img(0,32,32,28) 
-const heartImg = new Img(32,16,16,16) 
-const missileImg = new Img(32,32,16,10) 
-const shooterImg = new Img(32,50,16,8) 
+const ammoImg = new Img(32,618,16,8) 
+const carImg = new Img(32,576,16,16) 
+const grassImg = new Img(0,576,32,32) 
+const gunImg = new Img(0,608,32,28) 
+const heartImg = new Img(32,592,16,16) 
+const missileImg = new Img(32,608,16,10) 
+const shooterImg = new Img(32,626,16,8) 
 
+
+const tempImg = new Image()
+tempImg.src = "temp.png"
 
 const myFont = new FontFace('myFont', 'url(medodica.regular.otf)')
 myFont.load().then(font => {
@@ -246,7 +249,7 @@ class Skill{
         this.val = val
         this.isInt = isInt
         this.alive = true
-        this.desc = `${type}${val} to ${key}`
+        this.desc = `${type}${val}`
     }
     use(){
         console.log(`Skill:${this.type} ${this.key}`)
@@ -289,6 +292,35 @@ const SKILLS = [
     new Skill("+","regen",1,true),
     new Skill("*","regen",1.2,true)
 ]
+/*
+const sBulletSizeImg = new Img(0,0,48,48) 
+const sBulletSpeedImg = new Img(0,48,48,48) 
+const sFrictionImg = new Img(0,96,48,48) 
+const sMagSizeImg = new Img(0,144,48,48) 
+const sMaxHpImg = new Img(0,192,48,48) 
+const sMaxSpeedImg = new Img(0,240,48,48) 
+const sMissileTkImg = new Img(0,288,48,48) 
+const sPiercingImg = new Img(0,336,48,48) 
+const sRecoilImg = new Img(0,384,48,48) 
+const sRegenImg = new Img(0,432,48,48) 
+const sReloadTimeImg = new Img(0,480,48,48) 
+const sZoomImg = new Img(0,528,48,48) 
+*/
+
+const SKILLIMGS = {
+    recoil: new Img(0,384,48,48),
+    playerFriction: new Img(0,96,48,48),
+    maxSpeed: new Img(0,240,48,48),
+    bulletSpeed: new Img(0,48,48,48),
+    bulletRadius: new Img(0,0,48,48),
+    magSize: new Img(0,144,48,48) ,
+    reloadTime: new Img(0,480,48,48),
+    missileTk: new Img(0,288,48,48),
+    bulletPen: new Img(0,336,48,48),
+    unitsize: new Img(0,528,48,48),
+    maxHp: new Img(0,192,48,48) ,
+    regen: new Img(0,432,48,48) 
+}
 const defaultA = { //£ a
     recoil: 15,
     playerFriction: 1,
@@ -332,22 +364,18 @@ class Shooter{ //£ Shooter
         this.r = .5
         this.alive = true
         this.SPEED = 3
-        this.moveTimeLeft = 0
         this.shootTimeLeft = 0
     }
     update(delta){
-        if (this.moveTimeLeft <= 0) {
-            this.moveTimeLeft = 2
-            this.angle = angleTo(Player,this)
-        }else{
-            this.moveTimeLeft -= delta
-            this.x += Math.cos(this.angle) * delta * this.SPEED
-            this.y += Math.sin(this.angle) * delta * this.SPEED
-        }
+        this.angle = angleTo(Player,this)
+
+        this.x += Math.cos(this.angle) * delta * this.SPEED
+        this.y += Math.sin(this.angle) * delta * this.SPEED
+        
         if (pointDist(this.x,this.y,Cam.x,Cam.y) > worCanvasH) return
         if (this.shootTimeLeft <= 0){
             this.shootTimeLeft = 1
-            bullets.push(new Bullet(this.x,this.y, angleTo(Player,this),false))
+            bullets.push(new Bullet(this.x,this.y, this.angle,false))
         }else this.shootTimeLeft -= delta
     }
     draw(){
@@ -625,11 +653,11 @@ function drawHud(){
 const skillChooser = {
     boxW: 300,
     boxH: 300,
-    boxY: canvasHeight/2 - 100,
+    boxY: canvasHeight/2 - 150,
     init(){
         this.stage = 0
         this.stageTimeLeft = .5
-        scoreGoal += 10
+        scoreGoal += 10 
         this.skillChoices = randomItems(SKILLS.filter(skill => skill.alive),SKILLCHOICESAMO)
         const middleDist = canvasWidth/SKILLCHOICESAMO
         this.xPosis = []
@@ -665,14 +693,16 @@ const skillChooser = {
     draw(){
         if (!choosing || this.stage !== 1) return
         for (let i=0;i<SKILLCHOICESAMO; i++){
-            ctx.fillStyle = "grey"
-            ctx.fillRect(this.xPosis[i],this.boxY,this.boxW,this.boxH)
+            const nowSkill = this.skillChoices[i]
+            SKILLIMGS[nowSkill.key].draw(false,this.xPosis[i], this.boxY,this.boxW)
+
+            if (nowSkill.type === "?") continue
 
             ctx.fillStyle = "black"
-            ctx.font = "20px myFont"
+            ctx.font = "50px myFont"
             ctx.textAlign = "center"
-            ctx.textBaseline ="hanging"
-            ctx.fillText(this.skillChoices[i].desc,this.xPosis[i]+this.boxW/2,this.boxY,this.boxW)
+            ctx.textBaseline = "bottom"
+            ctx.fillText(nowSkill.desc,this.xPosis[i]+this.boxW/2,this.boxY + this.boxH,this.boxW)
         }
     }
 }
