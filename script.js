@@ -19,19 +19,12 @@ window.addEventListener("resize",resizeCanvas);
 resizeCanvas()
 
 let previousTime = 0;
-const isKeyDown = {};
 
 let mouseScrX = canvasWidth / 2;
 let mouseScrY = canvasHeight / 2;
 let mouseCoords = {x:0, y:0}
 let mouseDown = false;
 
-document.addEventListener("keydown", (event) => {
-    isKeyDown[event.key.toLowerCase()] = true;
-});
-document.addEventListener("keyup", (event) => {
-    isKeyDown[event.key.toLowerCase()] = false;
-})
 function getMousePos(event) {
     const rect = canvas.getBoundingClientRect();
     mouseScrX = (event.clientX - rect.left)/screenScale
@@ -42,10 +35,11 @@ canvas.addEventListener("mousemove", function (e) {
 })
 canvas.addEventListener("mousedown", function (e) {
     mouseDown = true;
-    if (stage === 0){
+    if (stage === 0 && atlasLoaded && audioLoaded){
         start()
     }else if(stage === 2){
         stage = 0
+        loseAu.pause()
     }
 })
 canvas.addEventListener("mouseup", function (e) {
@@ -54,7 +48,8 @@ canvas.addEventListener("mouseup", function (e) {
 //£Varibles
 const SKILLCHOICESAMO = 3
 let score
-let scoreGoal = 10
+let scoreGoal = 5
+let scoreGoalChange = 5
 let choosing = false
 let stage = 0
 
@@ -154,12 +149,24 @@ const missileImg = new Img(102,48,16,10)
 const shooterImg = new Img(144,192,16,8) 
 
 
+const gunShotAu = new Audio("audio/gunShot.mp3")
+const reloadAu = new Audio("audio/reload.mp3") 
+const boomAu = new Audio("audio/boom.mp3")
+const levelUpAu = new Audio("audio/levelUp.mp3")
+const loseAu = new Audio("audio/lose.mp3")
+const hitAu = new Audio("audio/hit.mp3")
 
+const audios = [gunShotAu,reloadAu,boomAu,levelUpAu,loseAu,hitAu]
+let audLoadedAmo = 0
+let audioLoaded = false
 
+audios.forEach(audio =>
+    audio.addEventListener("canplay", () => {
+        audLoadedAmo++
 
-const tempImg = new Image()
-tempImg.src = "temp.png"
-
+        audioLoaded = audLoadedAmo === audios.length
+    }, { once: true })
+)
 const myFont = new FontFace('myFont', 'url(medodica.regular.otf)')
 myFont.load().then(font => {
     document.fonts.add(font)
@@ -316,55 +323,42 @@ const SKILLS = [
     new Skill("*","bulletSpeed",1.5),
     new Skill("+","bulletSpeed",20),
     new Skill("*","reloadTime",.7),
-    new Skill("*","unitsize",.8),
+    new Skill("*","unitsize",.9),
     new Skill("+","maxHp",3,true),
     new Skill("*","maxHp",1.3,true),
-    new Skill("?","missileTk",true),
     new Skill("+","regen",1,true),
-    new Skill("*","regen",1.2,true)
+    new Skill("*","regen",1.2,true),
+    new Skill("+","bulletAmo",1,true),
+    new Skill("*","bulletAmo",1.5,true)
 ]
-/*
-const sBulletSizeImg = new Img(0,58,48,48) 
-const sBulletSpeedImg = new Img(0,106,48,48) 
-const sFrictionImg = new Img(0,154,48,48) 
-const sMagSizeImg = new Img(48,58,48,48) 
-const sMaxHpImg = new Img(48,106,48,48) 
-const sMaxSpeedImg = new Img(48,154,48,48) 
-const sMissileTkImg = new Img(96,58,48,48) 
-const sPiercingImg = new Img(96,106,48,48) 
-const sRecoilImg = new Img(96,154,48,48) 
-const sRegenImg = new Img(102,0,48,48) 
-const sReloadTimeImg = new Img(144,48,48,48) 
-const sZoomImg = new Img(144,96,48,48) 
-*/
 
 const SKILLIMGS = {
-    recoil: new Img(96,154,48,48) ,
+    recoil: new Img(96,106,48,48) ,
     playerFriction: new Img(0,154,48,48) ,
     maxSpeed: new Img(48,154,48,48) ,
     bulletSpeed: new Img(0,106,48,48) ,
     bulletRadius: new Img(0,58,48,48),
     magSize: new Img(48,58,48,48) ,
-    reloadTime: new Img(144,48,48,48) ,
-    missileTk: new Img(96,58,48,48),
-    bulletPen: new Img(96,106,48,48) ,
+    reloadTime: new Img(102,0,48,48) ,
+    bulletPen: new Img(96,58,48,48) ,
     unitsize: new Img(144,96,48,48) ,
     maxHp: new Img(48,106,48,48) ,
-    regen: new Img(102,0,48,48) 
+    regen: new Img(96,154,48,48),
+    bulletAmo: new Img(144,48,48,48) 
 }
 const defaultA = { //£ a
     recoil: 15,
     playerFriction: 1,
     maxSpeed: 100,
-    bulletSpeed: 40,
+    bulletSpeed: 30,
     bulletRadius: .3,
     magSize: 6,
     reloadTime: 1,
-    missileTk: false,
     bulletPen: 2,
     unitsize: 30,
     maxHp: 10,
-    regen: 1
+    regen: 1,
+    bulletAmo: 1,
 }
 let multiA = {}
 let addA = {}
@@ -383,9 +377,40 @@ function start(){
     Player = new PlayerClass()
     Cam.x = 0
     Cam.y = 0
-    scoreGoal = 10
+    scoreGoal = 5
+    scoreGoalChange = 5
     spawnTimeLeft = 0
     stage = 1
+}
+let booms = []
+class Boom{
+    constructor(x,y){
+        this.x = x
+        this.y = y
+        this.r = .5
+        this.alive = true
+
+        this.frame = 0
+        this.FRAMETIME = .2
+        this.FRAMEAMO = 3
+        this.frameTimeLeft = this.FRAMETIME
+
+        const noise = boomAu.cloneNode()
+        noise.play()
+    }
+    update(delta){
+        this.frameTimeLeft -= delta
+        while(this.frameTimeLeft<=0){
+            this.frame ++
+            this.frameTimeLeft += this.FRAMETIME
+            if (this.frame >= this.FRAMEAMO){
+                this.alive = false
+            }
+        }
+    }
+    draw(){
+        boomAni[this.frame].draw(true,this.x,this.y,this.r*2)
+    }
 }
 let foes = []
 class Shooter{ //£ Shooter
@@ -419,6 +444,7 @@ class Shooter{ //£ Shooter
         if (!this.alive) return
         this.alive = false 
         score ++
+        booms.push(new Boom(this.x,this.y))
     }
 }
 class Runner{//£ Runner
@@ -439,6 +465,7 @@ class Runner{//£ Runner
         if (cirCirColi(this,Player)) {
             this.alive = false
             Player.hurt()
+            booms.push(new Boom(this.x,this.y))
         }
         if (pointDist(this.x,this.y,Cam.x,Cam.y) > worCanvasW*2) this.alive = false
     }
@@ -449,6 +476,7 @@ class Runner{//£ Runner
         if (!this.alive) return
         this.alive = false
         score ++
+        booms.push(new Boom(this.x,this.y))
     }
 }
 class Missile{//£ Missile
@@ -473,15 +501,7 @@ class Missile{//£ Missile
         if (cirCirColi(this,Player)) {
             this.alive = false
             Player.hurt()
-        }
-        if (a.missileTk){
-            for (let foe of foes){
-                if (foe === this) continue
-                if (cirCirColi(foe,this)){
-                    this.die()
-                    foe.die()
-                }
-            }
+            booms.push(new Boom(this.x,this.y))
         }
 
     }
@@ -492,6 +512,7 @@ class Missile{//£ Missile
         if (!this.alive) return
         this.alive = false 
         score ++
+        booms.push(new Boom(this.x,this.y))
     }
 }
 const FOECLASSES = [Runner,Missile,Shooter]
@@ -597,31 +618,18 @@ class PlayerClass{ //£ Player
         this.r = 1
         this.xVel = 0
         this.yVel = 0
-        this.canClick = true
+        this.canClick = false
         this.mag = a.magSize
         this.reloadTimeLeft = 0
         this.reloading = false
         this.hp = a.maxHp
+        this.shottySpread = 1
     }
     update(delta){
         if (!this.reloading){
             this.angle = angleTo(mouseCoords,this)
             if (mouseDown && this.canClick){
-                if (this.mag > 0){
-                    this.canClick = false
-
-                    const speed = Math.hypot(this.xVel,this.yVel)
-                    if (speed < a.maxSpeed){
-                        this.xVel += Math.cos(this.angle) * -a.recoil
-                        this.yVel += Math.sin(this.angle) * -a.recoil
-                    }
-                    bullets.push(new Bullet(this.x,this.y,this.angle,true))
-                    this.mag --
-                }
-                else{
-                    this.reloadTimeLeft = a.reloadTime
-                    this.reloading = true
-                }
+                this.shoot()
             }
         }else{
             this.reloadTimeLeft -= delta
@@ -645,10 +653,45 @@ class PlayerClass{ //£ Player
     draw(){
         gunImg.drawSpec(true,this.x,this.y,this.r*2,undefined,this.angle)
     }
+    shoot(){
+        if (this.mag > 0){
+            this.canClick = false
+
+            const speed = Math.hypot(this.xVel,this.yVel)
+            if (speed < a.maxSpeed){
+                this.xVel += Math.cos(this.angle) * -a.recoil
+                this.yVel += Math.sin(this.angle) * -a.recoil
+            }
+            const noise = gunShotAu.cloneNode()
+            noise.play()
+            this.mag --
+            bullets.push(new Bullet(this.x,this.y,this.angle,true))
+            if (a.bulletAmo !== 1) {
+                for(let i=1; i<a.bulletAmo; i++){
+                    const shotAngle = this.angle + randFloat(-this.shottySpread/2,this.shottySpread/2)
+                    bullets.push(new Bullet(this.x,this.y,shotAngle,true))
+                }
+            }
+            
+        }
+        else{
+            this.reloadTimeLeft = a.reloadTime
+            this.reloading = true
+
+            reloadAu.playbackRate = .4/a.reloadTime 
+            reloadAu.currentTime = 0
+            reloadAu.play()
+        }
+    }
     hurt(){
         this.hp --
         if (this.hp <= 0) {
             stage = 2
+            loseAu.currentTime = 0
+            loseAu.play()
+        }else{
+            const noise = hitAu.cloneNode()
+            noise.play()
         }
     }
 }
@@ -669,6 +712,7 @@ const heartW = 100
 const ammoW = 100
 function drawHud(){
     drawText(score,canvasWidth/2,0,100,"myFont","black","hanging")
+    drawText(`${scoreGoal-score} left`,canvasWidth/2,70,40,"myFont","black","hanging")
 
     heartImg.draw(false,0,0,100)
     drawText(`${Player.hp}/${a.maxHp}`, heartW/2,heartW/4,40,"myFont","black","hanging","center",heartW)
@@ -685,7 +729,8 @@ const skillChooser = {
     init(){
         this.stage = 0
         this.stageTimeLeft = .5
-        scoreGoal += 10 
+        scoreGoal += scoreGoalChange
+        scoreGoalChange += 10
         this.skillChoices = randomItems(SKILLS.filter(skill => skill.alive),SKILLCHOICESAMO)
         const middleDist = canvasWidth/SKILLCHOICESAMO
         this.xPosis = []
@@ -696,7 +741,11 @@ const skillChooser = {
         Player.hp += a.regen
         Player.hp = Math.min(Player.hp,a.maxHp)
 
+        levelUpAu.currentTime = 0
+        levelUpAu.play()
+
         choosing = true
+        this.skillChoices.forEach(skill => console.log(skill.key))
     },
     update(delta){
         if (this.stage === 0){
@@ -704,7 +753,10 @@ const skillChooser = {
             else this.stage = 1
         }else if (this.stage === 2){
             if (this.stageTimeLeft>0)this.stageTimeLeft -= delta
-            else choosing = false
+            else {
+                choosing = false
+                levelUpAu.pause()
+            }
         }else if (mouseDown){
             for (let i=0;i<SKILLCHOICESAMO; i++){
                 if (pointRectColi(mouseScrX,mouseScrY,{
@@ -734,7 +786,7 @@ const skillChooser = {
 function drawIntro(){
     ctx.drawImage(introImg,0,0,canvasWidth,canvasHeight)
 
-    if (!atlasLoaded)  drawText("Loading...",canvasWidth/2,canvasHeight,
+    if (!(atlasLoaded && audioLoaded))  drawText("Loading...",canvasWidth/2,canvasHeight,
         50,"myFont","black","bottom","center")
 }
 function drawDeath(){
@@ -749,6 +801,7 @@ function main(delta){//£ main
         Cam.update(delta)
         bullets = updateAndFilter(bullets,delta)
         foes = updateAndFilter(foes,delta)
+        booms = updateAndFilter(booms,delta)
         spawnFoes(delta)
         if (scoreGoal <= score){
             skillChooser.init()
@@ -756,6 +809,7 @@ function main(delta){//£ main
     }else skillChooser.update(delta)
 
     drawBg()
+    booms.forEach(boom => boom.draw())
     bullets.forEach(bullet => bullet.draw())
     foes.forEach(foe => foe.draw())
     Player.draw()
