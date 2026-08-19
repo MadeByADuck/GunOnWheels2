@@ -25,26 +25,60 @@ let mouseScrY = canvasHeight / 2;
 let mouseCoords = {x:0, y:0}
 let mouseDown = false;
 
+const isMobile = navigator.maxTouchPoints > 0 ||
+    window.matchMedia("(pointer: coarse)").matches  
+
 function getMousePos(event) {
     const rect = canvas.getBoundingClientRect();
     mouseScrX = (event.clientX - rect.left)/screenScale
     mouseScrY = (event.clientY - rect.top)/screenScale
 }
-canvas.addEventListener("mousemove", function (e) {
-    getMousePos(e)
-})
-canvas.addEventListener("mousedown", function (e) {
-    mouseDown = true;
+function mouseUp(){
     if (stage === 0 && atlasLoaded && audioLoaded){
         start()
     }else if(stage === 2){
         stage = 0
         loseAu.pause()
+    }else if(stage === 1){
+        if (choosing){
+            skillChooser.click()
+        }else{
+            Player.shoot()
+        }
     }
-})
-canvas.addEventListener("mouseup", function (e) {
-    mouseDown = false;
-})
+}
+if (isMobile){
+    canvas.addEventListener("touchstart",function(e){
+        e.preventDefault()
+
+        getMousePos(e.touches[0])
+        mouseDown = true
+    }, {passive: false})
+    canvas.addEventListener("touchmove",function(e){
+        e.preventDefault()
+
+        getMousePos(e.touches[0])
+    }, {passive: false})
+    canvas.addEventListener("touchend",function(e){
+        e.preventDefault()
+
+        mouseDown = false
+        mouseUp()
+    }, {passive: false})
+}else{
+    canvas.addEventListener("mousemove", function (e) {
+        getMousePos(e)
+    })
+    canvas.addEventListener("mousedown", function (e) {
+        mouseDown = true;
+    })
+    canvas.addEventListener("mouseup", function (e) {
+        mouseDown = false;
+        mouseUp()
+    })
+}
+
+
 //£Varibles
 const SKILLCHOICESAMO = 3
 let score
@@ -290,7 +324,6 @@ class Skill{
         this.desc = `${type}${val}`
     }
     use(){
-        console.log(`Skill:${this.type} ${this.key}`)
         if (this.type === "?"){
             a[this.key] = this.val
             this.alive = false
@@ -628,9 +661,6 @@ class PlayerClass{ //£ Player
     update(delta){
         if (!this.reloading){
             this.angle = angleTo(mouseCoords,this)
-            if (mouseDown && this.canClick){
-                this.shoot()
-            }
         }else{
             this.reloadTimeLeft -= delta
             this.angle += (delta/a.reloadTime)*2*Math.PI
@@ -641,7 +671,6 @@ class PlayerClass{ //£ Player
         }
         
 
-        if (!mouseDown) this.canClick = true
 
         this.x += this.xVel * delta
         this.y += this.yVel * delta
@@ -654,6 +683,7 @@ class PlayerClass{ //£ Player
         gunImg.drawSpec(true,this.x,this.y,this.r*2,undefined,this.angle)
     }
     shoot(){
+        if (this.reloading) return
         if (this.mag > 0){
             this.canClick = false
 
@@ -745,7 +775,6 @@ const skillChooser = {
         levelUpAu.play()
 
         choosing = true
-        this.skillChoices.forEach(skill => console.log(skill.key))
     },
     update(delta){
         if (this.stage === 0){
@@ -757,16 +786,19 @@ const skillChooser = {
                 choosing = false
                 levelUpAu.pause()
             }
-        }else if (mouseDown){
-            for (let i=0;i<SKILLCHOICESAMO; i++){
-                if (pointRectColi(mouseScrX,mouseScrY,{
-                    x: this.xPosis[i], y: this.boxY, w: this.boxW, h: this.boxH
-                })){
-                    this.skillChoices[i].use()
-                    this.stage = 2
-                    this.stageTimeLeft = .5
-                    return
-                }
+        }
+    },
+    click(){
+        if (this.stage !== 1) return
+
+        for (let i=0;i<SKILLCHOICESAMO; i++){
+            if (pointRectColi(mouseScrX,mouseScrY,{
+                x: this.xPosis[i], y: this.boxY, w: this.boxW, h: this.boxH
+            })){
+                this.skillChoices[i].use()
+                this.stage = 2
+                this.stageTimeLeft = .5
+                return
             }
         }
     },
