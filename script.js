@@ -679,7 +679,7 @@ class PlayerClass{ //£ Player
     }
     draw(){
         if (mouseDown && !choosing && !this.reloading){
-            const lineDist = 750 / a.unitsize
+            const lineDist = 1470 / a.unitsize
             const lineX = this.x + Math.cos(this.angle) * lineDist
             const lineY = this.y + Math.sin(this.angle) * lineDist
             drawLine(true,this.x,this.y,lineX,lineY,.1,"red")
